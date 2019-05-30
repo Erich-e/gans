@@ -3,9 +3,12 @@ import os
 import numpy as np
 import tensorflow as tf
 
-# Ensure repeatability of noise
+# Hyperparameters
 np.random.seed(1)
 random_dim = 100
+
+epochs = 40
+batch_size = 128
 
 # Load, normalize and flatten mnist data
 mnist = tf.keras.datasets.mnist
