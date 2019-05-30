@@ -1,7 +1,9 @@
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+
 
 # Hyperparameters
 np.random.seed(1)
@@ -16,6 +18,24 @@ mnist = tf.keras.datasets.mnist
 (x_train, y_train), (x_valid, y_valid) = mnist.load_data()
 x_train = (x_train.astype(np.float32) - 127.5) / 127.5 
 x_train = x_train.reshape(60000, 784)
+
+def plot_images(filename, generator):
+    '''
+    Plot and save 100 smaple images from the generator
+    '''
+    noise = np.random.normal(0, 1, size=[100, random_dim])
+
+    generated_images = generator.predict(noise)
+    generated_images = generated_images.reshape(100, 28, 28)
+
+    plt.figure(figsize=(10, 10))
+    for i, image in enumerate(generated_images):
+        plt.subplot(10, 10, i+1)
+        plt.imshow(image, interpolation='nearest', cmap='gray_r')
+        plt.axis('off')
+
+    plt.tight_layout()
+    plt.savefig(filename)
 
 
 # Create the generator
@@ -92,9 +112,11 @@ gan.compile(loss='binary_crossentropy',
 batch_size = 50
 batch_count = x_train.shape[0] / batch_size
 
-epochs = 5
-
 for e in xrange(epochs):
+    filename = './samples/mnist_{0}.png'.format(e)
+
+    plot_images(filename, generator)
+
     for i in xrange(batch_count):
         print('Running epoch {0}, batch {1}'.format(e, i))
 
@@ -125,6 +147,4 @@ for e in xrange(epochs):
 
         discriminator.trainable = False
         gan.train_on_batch(noise, y_gen)
-
-
         
