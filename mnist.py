@@ -39,20 +39,41 @@ generator.compile(loss='binary_crossentropy',
 
 # Create the discriminator using transfer learning from resnet
 
-resnet_weights = './resnet_weights.h5'
+# resnet_weights = './resnet_weights.h5'
+
+# discriminator = tf.keras.models.Sequential()
+# discriminator.add(
+#     tf.keras.applications.ResNet50(include_top=False,
+#                                   pooling='avg',
+#                                   weights=resnet_weights))
+
+# discriminator.add(tf.keras.layers.Dense(1, tf.keras.activations.sigmoid))
+
+# discriminator.layers[0].trainable = False
+
+# discriminator.compile(loss='binary_crossentropy',
+#                       optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.9))
 
 discriminator = tf.keras.models.Sequential()
 discriminator.add(
-    tf.keras.applications.ResNet50(include_top=False,
-                                  pooling='avg',
-                                  weights=resnet_weights))
+    tf.keras.layers.Dense(256,
+                          input_dim=784,
+                          kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)))
+discriminator.add(tf.keras.layers.LeakyReLU(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.2))
 
-discriminator.add(tf.keras.layers.Dense(2, tf.keras.activations.softmax))
+discriminator.add(tf.keras.layers.Dense(512))
+discriminator.add(tf.keras.layers.LeakyReLU(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.2))
 
-discriminator.layers[0].trainable = False
+discriminator.add(tf.keras.layers.Dense(1024))
+discriminator.add(tf.keras.layers.LeakyReLU(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.2))
+
+discriminator.add(tf.keras.layers.Dense(1, tf.keras.activations.sigmoid))
 
 discriminator.compile(loss='binary_crossentropy',
-                      optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.9))
+                      optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.09))
 
 # Combine networks together 
 
@@ -62,9 +83,9 @@ x = generator(gan_input)
 
 gan_output = discriminator(x)
 
-gan = tf.keras.mode.Model(input=gan_input, output=gan_output)
+gan = tf.keras.models.Model(inputs=gan_input, outputs=gan_output)
 gan.compile(loss='binary_crossentropy',
-            optimizer=tf.keras.optimizers.Adam(lf=0.002, beta_1=0.09))
+            optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.09))
 
 # Train the network
 
@@ -81,10 +102,10 @@ for e in xrange(epochs):
 
         # Create real/generated batch of training data
         noise = np.random.normal(0, 1, size=(batch_size, random_dim))
-        images_batch = x_train[i*batch_count: (i+1)*batch_count]
+        images_batch = x_train[i*batch_size: (i+1)*batch_size]
 
         generated_images = generator.predict(noise)
-        X = np.concat([generated_images, images_batch])
+        X = np.concatenate([generated_images, images_batch])
 
         # Create labels for discriminator data
         y_dis = np.zeros(2 * batch_size)
