@@ -39,7 +39,7 @@ generator.compile(loss='binary_crossentropy',
 
 # Create the discriminator using transfer learning from resnet
 
-resnet_weights = '/some/file/path'
+resnet_weights = './resnet_weights.h5'
 
 discriminator = tf.keras.models.Sequential()
 discriminator.add(
@@ -47,7 +47,7 @@ discriminator.add(
                                   pooling='avg',
                                   weights=resnet_weights))
 
-discriminator.add(tf.keras.layers.Dense(2, tf.keras.layers.Softmax))
+discriminator.add(tf.keras.layers.Dense(2, tf.keras.activations.softmax))
 
 discriminator.layers[0].trainable = False
 
