@@ -6,7 +6,7 @@ import tensorflow as tf
 
 
 # Hyperparameters
-np.random.seed(1)
+# np.random.seed(1)
 random_dim = 100
 
 epochs = 40
@@ -55,7 +55,7 @@ generator.add(tf.keras.layers.LeakyReLU(0.2))
 generator.add(tf.keras.layers.Dense(784, activation='tanh'))
 
 generator.compile(loss='binary_crossentropy',
-                  optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.6))
+                  optimizer=tf.keras.optimizers.Adam())
 
 # Create the discriminator using transfer learning from resnet
 
@@ -93,7 +93,7 @@ discriminator.add(tf.keras.layers.Dropout(0.2))
 discriminator.add(tf.keras.layers.Dense(1, tf.keras.activations.sigmoid))
 
 discriminator.compile(loss='binary_crossentropy',
-                      optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.09))
+                      optimizer=tf.keras.optimizers.Adam())
 
 # Combine networks together 
 
@@ -105,12 +105,13 @@ gan_output = discriminator(x)
 
 gan = tf.keras.models.Model(inputs=gan_input, outputs=gan_output)
 gan.compile(loss='binary_crossentropy',
-            optimizer=tf.keras.optimizers.Adam(lr=0.002, beta_1=0.09))
+            optimizer=tf.keras.optimizers.Adam())
 
 # Train the network
 
 batch_size = 50
 batch_count = x_train.shape[0] / batch_size
+
 
 for e in xrange(epochs):
     filename = './samples/mnist_{0}.png'.format(e)
@@ -124,7 +125,8 @@ for e in xrange(epochs):
 
         # Create real/generated batch of training data
         noise = np.random.normal(0, 1, size=(batch_size, random_dim))
-        images_batch = x_train[i*batch_size: (i+1)*batch_size]
+        # Just pick random images, cross-validation too much work
+        images_batch = x_train[np.random.randint(0, x_train.shape[0], size=batch_size)]
 
         generated_images = generator.predict(noise)
         X = np.concatenate([generated_images, images_batch])
@@ -136,6 +138,7 @@ for e in xrange(epochs):
 
         discriminator.trainable = True
         discriminator.train_on_batch(X, y_dis)
+        discriminator.trainable = False
 
         # Generator training
 
@@ -145,6 +148,12 @@ for e in xrange(epochs):
         # Our goal is for the discriminator is to believe all these images are real
         y_gen = np.ones(batch_size)
 
-        discriminator.trainable = False
         gan.train_on_batch(noise, y_gen)
         
+
+x_valid = (x_valid.astype(np.float32) - 127.5) / 127.5 
+x_valid = x_valid.reshape(x_valid.shape[0], 784)
+
+y_valid = np.ones(x_valid.shape[0])
+
+discriminator.evaluate(x_valid, y_valid)
