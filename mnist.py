@@ -9,8 +9,9 @@ import tensorflow as tf
 # np.random.seed(1)
 random_dim = 100
 
-epochs = 40
+epochs = 51
 batch_size = 128
+adam = tf.keras.optimizers.Adam(lr=0.0002, beta_1=0.5)
 
 # Load, normalize and flatten mnist data
 mnist = tf.keras.datasets.mnist
@@ -19,9 +20,14 @@ mnist = tf.keras.datasets.mnist
 x_train = (x_train.astype(np.float32) - 127.5) / 127.5 
 x_train = x_train.reshape(60000, 784)
 
+x_valid = (x_valid.astype(np.float32) - 127.5) / 127.5 
+x_valid = x_valid.reshape(x_valid.shape[0], 784)
+
+y_valid = np.ones(x_valid.shape[0])
+
 def plot_images(filename, generator):
     '''
-    Plot and save 100 smaple images from the generator
+    Plot and save 100 sample images from the generator
     '''
     noise = np.random.normal(0, 1, size=[100, random_dim])
 
@@ -55,7 +61,7 @@ generator.add(tf.keras.layers.LeakyReLU(0.2))
 generator.add(tf.keras.layers.Dense(784, activation='tanh'))
 
 generator.compile(loss='binary_crossentropy',
-                  optimizer=tf.keras.optimizers.Adam())
+                  optimizer=adam)
 
 # Create the discriminator using transfer learning from resnet
 
@@ -76,24 +82,25 @@ generator.compile(loss='binary_crossentropy',
 
 discriminator = tf.keras.models.Sequential()
 discriminator.add(
-    tf.keras.layers.Dense(256,
+    tf.keras.layers.Dense(1024,
                           input_dim=784,
                           kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)))
 discriminator.add(tf.keras.layers.LeakyReLU(0.2))
-discriminator.add(tf.keras.layers.Dropout(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.3))
 
 discriminator.add(tf.keras.layers.Dense(512))
 discriminator.add(tf.keras.layers.LeakyReLU(0.2))
-discriminator.add(tf.keras.layers.Dropout(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.3))
 
-discriminator.add(tf.keras.layers.Dense(1024))
+discriminator.add(tf.keras.layers.Dense(256))
 discriminator.add(tf.keras.layers.LeakyReLU(0.2))
-discriminator.add(tf.keras.layers.Dropout(0.2))
+discriminator.add(tf.keras.layers.Dropout(0.3))
 
 discriminator.add(tf.keras.layers.Dense(1, tf.keras.activations.sigmoid))
 
 discriminator.compile(loss='binary_crossentropy',
-                      optimizer=tf.keras.optimizers.Adam())
+                      optimizer=adam)
+discriminator.trainable = False
 
 # Combine networks together 
 
@@ -105,7 +112,7 @@ gan_output = discriminator(x)
 
 gan = tf.keras.models.Model(inputs=gan_input, outputs=gan_output)
 gan.compile(loss='binary_crossentropy',
-            optimizer=tf.keras.optimizers.Adam())
+            optimizer=adam)
 
 # Train the network
 
@@ -114,12 +121,16 @@ batch_count = x_train.shape[0] / batch_size
 
 
 for e in xrange(epochs):
-    filename = './samples/mnist_{0}.png'.format(e)
+    filename = './samples/mnist_{0:02d}.png'.format(e)
 
     plot_images(filename, generator)
 
+    gen_loss = []
+    disc_loss = []
+
     for i in xrange(batch_count):
-        print('Running epoch {0}, batch {1}'.format(e, i))
+        if i%200 == 0:
+            print('Running epoch {0}, batch {1}'.format(e, i))
 
         # Discriminator training
 
@@ -134,10 +145,10 @@ for e in xrange(epochs):
         # Create labels for discriminator data
         y_dis = np.zeros(2 * batch_size)
         # one-sided label smoothing
-        y_dis[:batch_size] = 0.9
+        y_dis[batch_size:] = 0.9
 
         discriminator.trainable = True
-        discriminator.train_on_batch(X, y_dis)
+        disc_loss.append(discriminator.train_on_batch(X, y_dis))
         discriminator.trainable = False
 
         # Generator training
@@ -145,15 +156,17 @@ for e in xrange(epochs):
         # Make some noise for our input
         noise = np.random.normal(0, 1, size=(batch_size, random_dim))
 
-        # Our goal is for the discriminator is to believe all these images are real
+        # Our goal is for the discriminator to believe all these images are real
         y_gen = np.ones(batch_size)
 
-        gan.train_on_batch(noise, y_gen)
-        
+        gen_loss.append(gan.train_on_batch(noise, y_gen))
 
-x_valid = (x_valid.astype(np.float32) - 127.5) / 127.5 
-x_valid = x_valid.reshape(x_valid.shape[0], 784)
+    gen_loss_avg = sum(gen_loss) / batch_count
+    disc_loss_avg = sum(disc_loss) / batch_count
 
-y_valid = np.ones(x_valid.shape[0])
-
-discriminator.evaluate(x_valid, y_valid)
+    print("discriminator loss {0}".format(gen_loss_avg))
+    print("generator loss {0}".format(disc_loss))
+    # print('discriminator')
+    # discriminator.evaluate(x_valid, y_valid)
+    # print('gan')
+    # gan.evaluate(noise, y_gen)
