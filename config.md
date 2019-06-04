@@ -1,12 +1,22 @@
-#!/bin/bash
+# Manage a distributed horovod training session on GCE
 
-#Manage a distributed horovod training session on GCE
-
-set -e
-
+```
 gcloud config set project datasci-playground
+```
 
-# create an instance template
+Setup/teardown cluster
+```
+gcloud containers clusters create horovod \
+    --machine-type n1-standard-1 \
+    --accelerator type=nvidia-tesla-t4,count=1 \
+    --num-nodes 1 \
+    --zone us-central1-a
+
+gcloud clusters delete horovod
+```
+
+
+
 gcloud compute instance-template create-with-container horovod-template \
     --machine-type n1-standard-1 \
     --accelerator type=nvidia-tesla-t4,count=4 \
