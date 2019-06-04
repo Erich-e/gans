@@ -45,7 +45,7 @@ def plot_images(ctx, filename):
 
 def create_generator(ctx):
     '''
-    DCGAN architecture defined https://arxiv.org/pdf/1511.06434.pdf
+    TODO DCGAN architecture defined https://arxiv.org/pdf/1511.06434.pdf
     '''
     generator = tf.keras.models.Sequential()
     generator.add(

@@ -16,7 +16,6 @@ ctx.opt = hvd.DistributedOptimizer(
     tf.keras.optimizers.Adam(lr=0.01 * hvd.size(), beta_1=0.5))
 
 
-
 # Load, normalize and flatten mnist data
 mnist = tf.keras.datasets.mnist
 
