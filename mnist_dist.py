@@ -14,13 +14,14 @@ if __name__ == '__main__':
 
     ctx = mnist.Context()
     ctx.random_dim = 100
-    ctx.epochs = 51
+    ctx.filters = 64
     ctx.batch_size = 128
+    ctx.epochs = 51
     ctx.opt = hvd.DistributedOptimizer(
-        tf.keras.optimizers.Adam(lr=0.01 * hvd.size(), beta_1=0.5))
+        tf.keras.optimizers.Adam(lr=0.0002 * hvd.size(), beta_1=0.5))
 
     mnist.load_data(ctx)
-    ctx.generator = mnist.greate_generator(ctx)
+    ctx.generator = mnist.greate_dc_generator(ctx)
     ctx.discriminator = mnist.create_discriminator(ctx)
     ctx.gan = mnist.create_GAN(ctx)
 

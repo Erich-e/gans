@@ -44,9 +44,6 @@ def plot_images(ctx, filename):
     plt.savefig(filename)
 
 def create_generator(ctx):
-    '''
-    TODO DCGAN architecture defined https://arxiv.org/pdf/1511.06434.pdf
-    '''
     generator = tf.keras.models.Sequential()
     generator.add(
         tf.keras.layers.Dense(256,
@@ -65,6 +62,94 @@ def create_generator(ctx):
     generator.compile(loss='binary_crossentropy',
                     optimizer=ctx.opt)
 
+    return generator
+
+def create_dc_generator(ctx):
+    '''
+    DCGAN architecture defined https://arxiv.org/pdf/1511.06434.pdf
+    '''
+
+    generator = tf.keras.models.Sequential()
+
+    # (batch) x random_dim -> (batch) x 16 * ctx.filters
+    generator.add(tf.keras.layers.Dense(16 * ctx.filters,
+                                        activation="tanh",
+                                        input_shape=(ctx.random_dim, ),
+                                        kernel_initializer=ctx.kernel_initializer))
+
+    # (batch) x 16 * ctx.filters -> (batch) x ctx.filters x 4 x 4
+    generator.add(tf.keras.layers.Reshape((ctx.filters, 4, 4)))
+
+    # (batch) x ctx.filters x 4 x 4 -> (batch) x filters*8 x 8 x 8
+    generator.add(
+        tf.keras.layers.Conv2DTranspose(ctx.filters * 8,
+                                        kernel_size=4,
+                                        strides=2,
+                                        padding="same",
+                                        kernel_initializer=ctx.kernel_initializer,
+                                        data_format="channels_first"))
+    generator.add(tf.keras.layers.LeakyReLU(0.2))
+    generator.add(tf.keras.layers.BatchNormalization())
+
+    # (batch) x filters*8 x 8 x 8 -> (batch) x filters*4 x 16 x 16
+    generator.add(
+        tf.keras.layers.Conv2DTranspose(ctx.filters * 4,
+                                        kernel_size=4,
+                                        strides=2,
+                                        padding="same",
+                                        kernel_initializer=ctx.kernel_initializer,
+                                        data_format="channels_first"))
+    generator.add(tf.keras.layers.LeakyReLU(0.2))
+    generator.add(tf.keras.layers.BatchNormalization())
+
+    # (batch) x filters*4 x 16 x 16 -> (batch) x filters*2 x 32 x 32
+    generator.add(
+        tf.keras.layers.Conv2DTranspose(ctx.filters * 2,
+                                        kernel_size=4,
+                                        strides=2,
+                                        padding="same",
+                                        kernel_initializer=ctx.kernel_initializer,
+                                        data_format="channels_first"))
+    generator.add(tf.keras.layers.LeakyReLU(0.2))
+    generator.add(tf.keras.layers.BatchNormalization())
+
+    # (batch) x filters*2 x 32 x 32 -> (batch) x filters x 64 x 64
+    generator.add(
+        tf.keras.layers.Conv2DTranspose(ctx.filters,
+                                        kernel_size=4,
+                                        strides=2,
+                                        padding="same",
+                                        kernel_initializer=ctx.kernel_initializer,
+                                        data_format="channels_first"))
+    generator.add(tf.keras.layers.LeakyReLU(0.2))
+    generator.add(tf.keras.layers.BatchNormalization())
+
+    # (batch) x filters x 64 x 64 -> (batch) x channels x 128 x 128
+    generator.add(
+        tf.keras.layers.Conv2DTranspose(ctx.channels,
+                                        kernel_size=4,
+                                        strides=2,
+                                        padding="same",
+                                        kernel_initializer=ctx.kernel_initializer,
+                                        data_format="channels_first"))
+    generator.add(tf.keras.layers.LeakyReLU(0.2))
+
+    # (batch) x channels x 128 x 128 -> (batch) x channels x image_dim x image_dim
+    padding_amount = ctx.image_dim - (128 % ctx.image_dim)
+    compression_ratio = (128 + padding_amount) // ctx.image_dim
+    generator.add(
+        tf.keras.layers.ZeroPadding2D((padding_amount // 2),
+                                      data_format="channels_first"))
+    generator.add(
+        tf.keras.layers.MaxPooling2D(pool_size=compression_ratio,
+                                     data_format="channels_first"))
+
+    # Needed to connect with regular discriminator
+    generator.add(tf.keras.layers.Flatten(data_format="channels_first"))
+
+    generator.compile(loss='binary_crossentropy',
+                      optimizer=ctx.opt)
+    
     return generator
 
 # Create the discriminator using transfer learning from resnet
@@ -135,7 +220,7 @@ def train(ctx):
     batch_count = ctx.x_train.shape[0] // ctx.batch_size
 
     for e in range(ctx.epochs):
-        filename = './samples/mnist_{0:02d}.png'.format(e)
+        filename = './train_output/mnist_{0:02d}.png'.format(e)
 
         plot_images(ctx, filename)
 
@@ -189,12 +274,16 @@ if __name__ == '__main__':
     ctx = Context()
 
     ctx.random_dim = 100
+    ctx.image_dim = 28
+    ctx.filters = 64
+    ctx.channels = 1
+    ctx.batch_size = 128
     ctx.epochs = 51
-    ctx.batch_size = 50
     ctx.opt = tf.keras.optimizers.Adam(lr=0.0002, beta_1=0.5)
+    ctx.kernel_initializer = tf.keras.initializers.RandomNormal(stddev=0.02)
 
     load_data(ctx)
-    ctx.generator = create_generator(ctx)
+    ctx.generator = create_dc_generator(ctx)
     ctx.discriminator = create_discriminator(ctx)
     ctx.gan = create_GAN(ctx)
 
