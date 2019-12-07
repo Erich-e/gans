@@ -1,3 +1,8 @@
+'''
+GAN to generate samples from the mnist dataset
+Convolutional is WIP
+'''
+
 import os
 
 import matplotlib.pyplot as plt
@@ -205,7 +210,8 @@ def create_dc_discriminator(ctx):
 
     # (batch) x image_dim*image_dim*channels -> (batch) x image_dim x image_dim x channels
     discriminator.add(
-        tf.keras.layers.Reshape((ctx.image_dim, ctx.image_dim, ctx.channels)))
+        tf.keras.layers.Reshape((ctx.image_dim, ctx.image_dim, ctx.channels),
+                                input_shape = (ctx.image_dim * ctx.image_dim* ctx.channels, )))
 
     # (batch) x image_dim x image_dim x channels -> (batch) x 128 x 128 x channels
     padding_amount = ctx.image_dim - (128 % ctx.image_dim)
@@ -272,6 +278,9 @@ def create_dc_discriminator(ctx):
     discriminator.add(tf.keras.layers.BatchNormalization())
 
     discriminator.add(
+        tf.keras.layers.Flatten())
+
+    discriminator.add(
         tf.keras.layers.Dense(1, activation="sigmoid"))
 
     discriminator.compile(loss='binary_crossentropy',
@@ -301,7 +310,7 @@ def create_GAN(ctx):
 def train(ctx):
     batch_count = ctx.x_train.shape[0] // ctx.batch_size
 
-    print(batch_count)
+    print("Batch count: {0}".format(batch_count))
 
     for e in range(ctx.epochs):
         filename = './train_output/mnist_{0:02d}.png'.format(e)
